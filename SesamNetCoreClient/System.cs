@@ -7,7 +7,7 @@ namespace SesamNetCoreClient
     /// <summary>
     /// Supported Sesam system types
     /// </summary>
-    enum SystemType
+    public enum SystemType
     {
         ORACLE,
         ORACLE_TNS,
@@ -19,10 +19,10 @@ namespace SesamNetCoreClient
     /// <summary>
     /// Represents a secret - global or specific to this particular system
     /// </summary>
-    struct Secret
+    public struct Secret
     {
-        string value;
-        bool isGlobal;
+        public string value { get; }
+        public bool isGlobal { get; }
 
         public Secret(string value, bool isGlobal = false)
         {
@@ -33,14 +33,18 @@ namespace SesamNetCoreClient
     /// <summary>
     /// Represent a Sesam system object
     /// </summary>
-    class System
+    public sealed class SesamSystem
     {
-        private Dictionary<string, object> attrs { get; }
-        private Dictionary<string, Secret> secrets { get; }
-        private Dictionary<string, string> envs { get; }
+        public Dictionary<string, object> attrs { get; }
+        public Dictionary<string, Secret> secrets { get; }
+        public Dictionary<string, string> envs { get; }
+        public SystemType systemType { get; internal set; }
 
-        public System(string id)
+        public string id { get; internal set; }
+
+        public SesamSystem(string id)
         {
+            this.id = id;
             this.attrs = new Dictionary<string, object>(8);
             this.attrs.Add("_id", id);
 
@@ -51,11 +55,12 @@ namespace SesamNetCoreClient
         /// <summary>
         /// Assign type of system to be created
         /// </summary>
-        /// <param name="s">System type</param>
+        /// <param name="s">SesamSystem type</param>
         /// <returns></returns>
-        public System OfType(SystemType s)
+        public SesamSystem OfType(SystemType s)
         {
-            this.attrs.Add("system", String.Format("system:{0}", s.ToString().ToLower()));
+            this.systemType = s;
+            this.attrs.Add("type", String.Format("system:{0}", s.ToString().ToLower()));
             return this;
         }
 
@@ -65,7 +70,7 @@ namespace SesamNetCoreClient
         /// <param name="key"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public System With(string key, string value)
+        public SesamSystem With(string key, object value)
         {
             this.attrs.Add(key, value);
             return this;
@@ -78,9 +83,9 @@ namespace SesamNetCoreClient
         /// <param name="value">value of this attribute eg 'secret_system_password' 
         /// which will be stored as $_SECRET(secret_system_password)</param>
         /// <returns></returns>
-        public System WithExistingSecret(string key, string value)
+        public SesamSystem WithExistingSecret(string key, string value)
         {
-            this.attrs.Add(key, String.Format("$_SECRET({0})", value));
+            this.attrs.Add(key, String.Format("$SECRET({0})", value));
             return this;
         }
 
@@ -91,9 +96,9 @@ namespace SesamNetCoreClient
         /// <param name="value">value for this attribute eg 'host_for_our_db'
         /// which will be storeed as $_ENV(host_for_our_db)</param>
         /// <returns></returns>
-        public System WithExistingEnv(string key, string value)
+        public SesamSystem WithExistingEnv(string key, string value)
         {
-            this.attrs.Add(key, String.Format("$_ENV({0})", value));
+            this.attrs.Add(key, String.Format("$ENV({0})", value));
             return this;
         }
 
@@ -106,10 +111,10 @@ namespace SesamNetCoreClient
         /// <param name="isGlobal">true if should be stored in global vault false if should
         /// be stored in system specific vault</param>
         /// <returns></returns>
-        public System WithSecret(string key, string value, string secretValue, bool isGlobal = false)
+        public SesamSystem WithSecret(string key, string value, string secretValue, bool isGlobal = false)
         {
             this.secrets.Add(value, new Secret(secretValue, isGlobal));
-            this.attrs.Add(key, String.Format("$_SECRET({0})", value));
+            this.attrs.Add(key, String.Format("$SECRET({0})", value));
             return this;
         }
 
@@ -120,12 +125,13 @@ namespace SesamNetCoreClient
         /// <param name="value"></param>
         /// <param name="envValue"></param>
         /// <returns></returns>
-        public System WithEnv(string key, string value, string envValue)
+        public SesamSystem WithEnv(string key, string value, string envValue)
         {
             this.envs.Add(value, envValue);
-            this.attrs.Add(key, String.Format("$_ENV({0})", value));
+            this.attrs.Add(key, String.Format("$ENV({0})", value));
             return this;
         }
+
 
     }
 }

@@ -11,11 +11,12 @@ namespace TestSesamClient
     [TestClass]
     public class UnitTest1
     {
-        private string jwt;
-        private string subscriptionId;
+        private static string jwt;
+        private static string subscriptionId;
 
-        [TestInitialize]
-        public void Init() {
+        [AssemblyInitialize]
+        public static void Init(TestContext context)
+        {
             using (var file = File.OpenText("../../../Properties/launchSettings.json"))
             {
                 var reader = new JsonTextReader(file);
@@ -35,12 +36,12 @@ namespace TestSesamClient
                     Environment.SetEnvironmentVariable(variable.Name, variable.Value.ToString());
                 }
             }
-            this.jwt = Environment.GetEnvironmentVariable("SESAM_JWT");
-            this.subscriptionId = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
+            jwt = Environment.GetEnvironmentVariable("SESAM_JWT");
+            subscriptionId = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
         }
 
-        [TestCleanup]
-        public void DeInit()
+        [AssemblyCleanup]
+        public static void DeInit()
         {
             using (var file = File.OpenText("../../../Properties/launchSettings.json"))
             {
@@ -61,24 +62,57 @@ namespace TestSesamClient
                     Environment.SetEnvironmentVariable(variable.Name, null);
                 }
             }
+            Client client = new Client(jwt, subscriptionId);
+            client.DeleteSystem("id-for-my-new-system");
+            client.DeletePipe("id-for-my-new-pipe");
+
         }
 
         [TestMethod]
         public void testInit()
         {
 
-            Client client = new Client(this.jwt, this.subscriptionId);
+            Client client = new Client(jwt, subscriptionId);
             var result = client.Ping();
             Assert.AreEqual(true, result);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(System.InvalidOperationException))]
+        [ExpectedException(typeof(System.AggregateException))]
         public void testInitMustFail()
         {
             Client client = new Client("", "fake-id");
             var result = client.Ping();
             Assert.AreEqual(true, result);
+        }
+
+        [TestMethod]
+        public void TestSystemCreate()
+        {
+            Client client = new Client(jwt, subscriptionId);
+            SesamSystem s = new SesamSystem("id-for-my-new-system")
+                .OfType(SystemType.POSTGRESQL)
+                .With("host", Environment.GetEnvironmentVariable("DB_HOST"))
+                .With("port", 5432)
+                .With("database", "test_db2")
+                .WithEnv("username", "my-db-username", Environment.GetEnvironmentVariable("DB_USER"))
+                .WithSecret("password", "my-db-password", Environment.GetEnvironmentVariable("DB_PASSWORD"), true);
+            string json = client.CreateSystem(s);
+
+            Assert.IsTrue(json.Length > 100);
+        }
+
+        [TestMethod]
+        public void TestPipeCreate() {
+            Client client = new Client(jwt, subscriptionId);
+            Pipe p = new Pipe("id-for-my-new-pipe");
+            var source = new SqlSource();
+
+            source.SetTable("customer");
+            source.SetSystem("id-for-my-new-system");
+            source.SetType("sql");
+            p.WithSource(source);
+            string json = client.CreatePipe(p);
         }
     }
 }
