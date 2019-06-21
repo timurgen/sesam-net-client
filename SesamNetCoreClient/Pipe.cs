@@ -5,12 +5,52 @@ using System.Text;
 namespace SesamNetCoreClient
 {
 
+    /// <summary>
+    /// Interface providing methods for "source" part of a pipe
+    /// 
+    /// `
+    /// {
+    ///     "_id": "case-salesforce",
+    ///     "type": "pipe",
+    ///     "source": {
+    ///         "type": "dataset",
+    ///         "dataset": "salesforce-case"
+    ///     },
+    ///     "transform": {
+    ///         "type": "dtl",
+    ///         "rules": {
+    ///             "default": [
+    ///                 ["add", "Id", "_S.Id"],
+    ///                 ["add", "ContactId", null]
+    ///             ]
+    ///         }
+    ///     }
+    ///}
+    /// `
+    /// </summary>
     public interface ISource
     {
+        /// <summary>
+        /// Method to set a source type
+        /// Check Sesam.io documentation for list of availbale sources
+        /// </summary>
+        /// <param name="type"></param>
         void SetType(string type);
+        /// <summary>
+        /// Method that returns all "source" attributes
+        /// </summary>
+        /// <returns></returns>
         Dictionary<string, string> GetAttributes();
+        /// <summary>
+        /// Method that check if provided source is correctly formed according to its type
+        /// This method should throw a ValidationException if source configuration is not valid
+        /// </summary>
+        void Validate();
     }
 
+    /// <summary>
+    /// SQL source 
+    /// </summary>
     public class SqlSource : ISource
     {
         private Dictionary<string, string> attrs;
@@ -38,6 +78,16 @@ namespace SesamNetCoreClient
         public Dictionary<string, string> GetAttributes()
         {
             return this.attrs;
+        }
+
+        public void Validate() {
+            if (!this.attrs.ContainsKey("system")) {
+                throw new ValidationException("source doesn't contain a system");
+            }
+
+            if (!this.attrs.ContainsKey("table") && !this.attrs.ContainsKey("query")) {
+                throw new ValidationException("table or qury attribute must be presented");
+            }
         }
     }
 
